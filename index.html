@@ -6,9 +6,11 @@
   <title>Document</title>
 </head>
 <body>
-  <div id="app" style="font-size: 0px;">
+  <div id="app">
     <h1>{{ msg }}</h1>
     <input type="text" v-model="msg" />
+    <button v-on:click="handleClick">handleClick</button>
+    <button @click="handleClick">@handleClick</button>
   </div>
   <script src="./vue.js"></script>
   <script>
@@ -18,13 +20,18 @@
         msg: 'hello world'
       },
       methods: {
+        handleClick(){
+          this.msg = new Date().getTime();
+        }
+      },
+      methods: {
         handleClick() {
           console.log(this);
           this.msg = new Date().getTime();
         }
       }
     })
-    vm.msg = 'something'
+    // vm.msg = 'something'
     // console.log(vm.msg);
   </script>
 </body>

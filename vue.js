@@ -1,3 +1,4 @@
+TARGET = null;
 // 数据
 // vue 构造函数
 class Vue{
@@ -43,8 +44,11 @@ class Observer{
     }
     defineReactive(obj, key, value){
         this.observer(value) // 如何value 仍然是对象，反复迭代
+        const dep = new Dep()
         Object.defineProperty(obj, key, {
             get(){
+                const target = TARGET;
+                target && dep.addWatcher(target);
                 // console.log('get', key, value);
                 return value;
             },
@@ -53,6 +57,7 @@ class Observer{
                 console.log('set', key, value);
                 this.observer(newVal);
                 value = newVal;
+                dep.notify();
             }
         })
     }
@@ -110,6 +115,11 @@ class Compiler{
                 console.log(directive, value);
                 const [compileKey, eventName] = directive.split(':');
                 utils[compileKey](node, value, this.vm, eventName)
+            } else if(this.isEventName(name)){
+                // @方法
+                const [,eventName] = name.split('@');
+                utils['on'](node, value, this.vm, eventName);
+
             }
         })
     }
@@ -121,6 +131,9 @@ class Compiler{
             console.log(content);
             utils['text'](node, content, this.vm)
         }
+    }
+    isEventName(name){
+        return name.startsWith('@');
     }
     // 是否是指令
     isDirector(name){
@@ -135,8 +148,37 @@ class Compiler{
         return el.nodeType === 3;
     }
 }
-class Watch {
-
+class Watcher {
+    constructor(expr, vm, cb){
+        this.expr = expr;
+        this.vm = vm;
+        this.cb = cb;
+        // 通过 getter 对数据绑定，绑定当前的watcher
+        this.oldValue = this.getOldValue();
+    }
+    getOldValue(){
+        TARGET = this;
+        const oldValue = utils.getValue(this.expr, this.vm);
+        TARGET = null;
+        return oldValue;
+    }
+    update(){
+        const newValue = utils.getValue(this.expr, this.vm);
+        if(newValue !== this.oldValue){
+            this.cb(newValue);
+        }
+    }
+}
+class Dep {
+    constructor(){
+        this.collect = [];
+    }
+    addWatcher(watcher){
+        this.collect.push(watcher)
+    }
+    notify(){
+        this.collect.forEach(w=>w.update())
+    }
 }
 const utils = {
     getValue(expr, vm){
@@ -148,27 +190,38 @@ const utils = {
     textUpdater(node, result){
         node.textContent = result;
     },
+    modelUpdater(node, value){
+        node.value = value;
+    },
     model(node, value, vm){
         const initValue = this.getValue(value, vm);
-
+        new Watcher(value, vm, (newValue)=>{
+            this.modelUpdater(node, newValue);
+        })
         node.addEventListener('input', (e)=>{
             const newValue = e.target.value;
             this.setValue(value, vm, newValue);
         })
-        console.log(initValue);
-        
+        this.modelUpdater(node, initValue);
     },
     text(node, value, vm){
        let result;
        if(value.includes('{{')){
-           value.replace(/\{\{(.+)\}\}/g, (...args)=>{
+        result = value.replace(/\{\{(.+)\}\}/g, (...args)=>{
+                const expr = args[1];
+                new Watcher(expr, vm, (newVal) => {
+                    this.textUpdater(node, newVal);
+                  })
                return this.getValue(args[1], vm);
            });
        }else {
         // v-text="xxx"
-        esult = this.getValue(value, vm)
+        result = this.getValue(value, vm)
        }
        this.textUpdater(node, result)
     },
-    on(node, value, vm, eventName){}
+    on(node, value, vm, eventName){
+        const fn = vm.$options.methods[value];
+        node.addEventListener(eventName, fn.bind(vm), false)
+    }
 }
