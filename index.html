@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <div id="app" style="font-size: 0px;">
+    <h1>{{ msg }}</h1>
+    <input type="text" v-model="msg" />
+  </div>
+  <script src="./vue.js"></script>
+  <script>
+    const vm = new Vue({
+      el: '#app',
+      data: {
+        msg: 'hello world'
+      },
+      methods: {
+        handleClick() {
+          console.log(this);
+          this.msg = new Date().getTime();
+        }
+      }
+    })
+    vm.msg = 'something'
+    // console.log(vm.msg);
+  </script>
+</body>
+</html>
